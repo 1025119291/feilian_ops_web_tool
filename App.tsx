@@ -7,6 +7,7 @@ import NetworkTool from './views/NetworkTool';
 import CodeTools from './views/CodeTools';
 import FeilianTool from './views/FeilianTool';
 import DidTool from './views/DidTool';
+import SslTool from './views/SslTool';
 import { RouteConfig } from './types';
 import { 
   Clock, 
@@ -17,13 +18,15 @@ import {
   Braces, 
   Terminal, 
   FileDiff,
-  Calculator
+  Calculator,
+  ShieldCheck
 } from 'lucide-react';
 
 const App: React.FC = () => {
   const routes: RouteConfig[] = [
     { path: '/time', name: 'Unix 时间戳转换', icon: Clock, component: <TimeTool />, category: '常用工具' },
     { path: '/encode', name: '编码/解码工具', icon: Binary, component: <EncodingTool />, category: '常用工具' },
+    { path: '/ssl', name: 'SSL 证书查看', icon: ShieldCheck, component: <SslTool />, category: '常用工具' },
     { path: '/ip', name: '公网 IP 查询', icon: Globe, component: <NetworkTool />, category: '网络工具' },
     { path: '/feilian', name: '飞连企业识别码查询', icon: Shield, component: <FeilianTool />, category: '飞连工具' },
     { path: '/did', name: 'DID 生成时间计算', icon: Calculator, component: <DidTool />, category: '飞连工具' },

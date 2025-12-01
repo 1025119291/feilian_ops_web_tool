@@ -16,7 +16,8 @@
     "react-router-dom": "^7.9.6",
     "clsx": "^2.1.1",
     "vite": "^7.2.6",
-    "@vitejs/plugin-react": "^5.1.1"
+    "@vitejs/plugin-react": "^5.1.1",
+    "jsrsasign": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

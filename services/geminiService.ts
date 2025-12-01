@@ -13,7 +13,7 @@ const getAiClient = () => {
 export const checkShellScript = async (script: string): Promise<string> => {
   try {
     const ai = getAiClient();
-    const model = "gemini-2.5-flash"; // Good balance of speed and reasoning for code
+    const model = "gemini-3-pro-preview"; // Good balance of speed and reasoning for code
     
     const prompt = `
       Analyze the following Shell/Bash script for syntax errors, potential bugs, and best practice violations.
@@ -42,7 +42,7 @@ export const checkShellScript = async (script: string): Promise<string> => {
 export const explainRegex = async (regex: string, text: string): Promise<string> => {
    try {
     const ai = getAiClient();
-    const model = "gemini-2.5-flash";
+    const model = "gemini-3-pro-preview";
     
     const prompt = `
       Explain this Hyperscan/PCRE regular expression: \`${regex}\`.
