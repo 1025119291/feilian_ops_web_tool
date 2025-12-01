@@ -15,7 +15,10 @@ const FeilianTool: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await fetch("https://corplink.isealsuite.com/api/match", {
+      // 修改为相对路径 /feilian-api/match
+      // 本地开发通过 vite.config.ts 代理
+      // 线上部署通过 vercel.json 代理
+      const response = await fetch("/feilian-api/match", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
