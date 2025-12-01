@@ -1,0 +1,5 @@
+{
+  "name": "Feilian OpsTool",
+  "description": "一套综合运维工具，包含 Unix 时间戳转换、Base64/URL 编码解码、IP 归属地查询、Shell 脚本分析和飞连企业信息查询等功能。",
+  "requestFramePermissions": []
+}
