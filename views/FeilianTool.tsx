@@ -1,23 +1,73 @@
+
 import React, { useState } from 'react';
-import { Shield, Search, Server, FileKey, Globe, CheckCircle2, XCircle, Copy } from 'lucide-react';
+import { Shield, Search, Server, FileKey, Globe, CheckCircle2, XCircle, Copy, Info } from 'lucide-react';
 import { FeilianResponse } from '../types';
+
+interface PortalInfo {
+  version: string;
+  deployType: string;
+  loading: boolean;
+  error?: string;
+}
 
 const FeilianTool: React.FC = () => {
   const [code, setCode] = useState('');
   const [result, setResult] = useState<FeilianResponse | null>(null);
+  const [portalInfo, setPortalInfo] = useState<PortalInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const fetchPortalInfo = async (domain: string) => {
+    setPortalInfo({ version: '', deployType: '', loading: true });
+    try {
+      // Use the proxy endpoint (defined in api/proxy.js for Vercel, and vite.config.ts for local)
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(domain)}`;
+      const response = await fetch(proxyUrl);
+      
+      if (!response.ok) {
+        throw new Error('无法访问门户页面');
+      }
+
+      const html = await response.text();
+      
+      // Regex extraction based on user logic:
+      // version=$(echo "$response_portal" | grep -o "VERSION: '[^']*'" | awk -F"'" '{print $2}')
+      // DEPLOY_TYPE=$(echo "$response_portal" | grep -o "DEPLOY_TYPE: '[^']*'" | awk -F"'" '{print $2}')
+      
+      const versionMatch = html.match(/VERSION:\s*'([^']+)'/);
+      const deployTypeMatch = html.match(/DEPLOY_TYPE:\s*'([^']+)'/);
+      
+      const version = versionMatch ? versionMatch[1] : '未检测到';
+      const deployTypeRaw = deployTypeMatch ? deployTypeMatch[1] : 'unknown';
+      
+      let deployType = deployTypeRaw;
+      if (deployTypeRaw === '0') deployType = '私有化部署 (0)';
+      if (deployTypeRaw === '1') deployType = 'SaaS 部署 (1)';
+
+      setPortalInfo({
+        version,
+        deployType,
+        loading: false
+      });
+    } catch (e: any) {
+      setPortalInfo({
+        version: '获取失败',
+        deployType: '获取失败',
+        loading: false,
+        error: e.message
+      });
+    }
+  };
 
   const queryCode = async () => {
     if (!code) return;
     setLoading(true);
     setError('');
     setResult(null);
+    setPortalInfo(null);
 
     try {
-      // 修改为相对路径 /feilian-api/match
-      // 本地开发通过 vite.config.ts 代理
-      // 线上部署通过 vercel.json 代理
+      // Local dev uses vite proxy, Prod uses vercel rewrite
       const response = await fetch("/feilian-api/match", {
         method: 'POST',
         headers: {
@@ -34,6 +84,9 @@ const FeilianTool: React.FC = () => {
       setResult(data);
       if (data.code !== 0) {
         setError(data.message || '查询返回错误代码');
+      } else if (data.data?.domain) {
+        // Automatically fetch portal info if domain exists
+        fetchPortalInfo(data.data.domain);
       }
     } catch (err: any) {
       setError(err.message || '网络请求失败，请检查网络连接或跨域设置。');
@@ -108,6 +161,31 @@ const FeilianTool: React.FC = () => {
             <InfoItem label="中文名" value={result.data.zh_name} />
             <InfoItem label="英文名" value={result.data.en_name} />
             
+            {/* Added Portal Info Section */}
+            <div className="flex flex-col border-b border-slate-100 pb-2 md:border-b-0 md:pb-0">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">服务端版本</label>
+              <div className="text-slate-900 font-medium break-words flex items-center gap-2">
+                {portalInfo?.loading ? (
+                  <span className="text-slate-400 text-xs animate-pulse">解析中...</span>
+                ) : (
+                  <span>{portalInfo?.version || '-'}</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex flex-col border-b border-slate-100 pb-2 md:border-b-0 md:pb-0">
+               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">部署类型</label>
+               <div className="text-slate-900 font-medium break-words">
+                  {portalInfo?.loading ? (
+                    <span className="text-slate-400 text-xs animate-pulse">解析中...</span>
+                  ) : (
+                    <span className={portalInfo?.deployType?.includes('SaaS') ? 'text-blue-600' : 'text-slate-700'}>
+                      {portalInfo?.deployType || '-'}
+                    </span>
+                  )}
+               </div>
+            </div>
+
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
                 <Globe className="w-5 h-5 text-blue-600 mt-0.5" />
