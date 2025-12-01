@@ -4,7 +4,18 @@ import { Clock, RefreshCw } from 'lucide-react';
 const TimeTool: React.FC = () => {
   const [now, setNow] = useState<number>(Math.floor(Date.now() / 1000));
   const [inputTs, setInputTs] = useState<string>(Math.floor(Date.now() / 1000).toString());
-  const [inputDate, setInputDate] = useState<string>(new Date().toISOString().slice(0, 16));
+  
+  // Initialize with current Beijing Time (UTC+8)
+  const getBeijingISO = () => {
+    const d = new Date();
+    // Calculate UTC time in ms
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    // Add 8 hours for Beijing
+    const beijing = new Date(utc + (3600000 * 8));
+    return beijing.toISOString().slice(0, 16);
+  };
+
+  const [inputDate, setInputDate] = useState<string>(getBeijingISO());
   
   // Auto-update "Current Time"
   useEffect(() => {
@@ -12,16 +23,31 @@ const TimeTool: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  const formatBeijingTime = (ts: number) => {
+    return new Date(ts * 1000).toLocaleString('zh-CN', { 
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
   const tsToDate = (ts: string) => {
     const num = parseInt(ts, 10);
     if (isNaN(num)) return '无效的时间戳';
     // Handle milliseconds if length is 13
     const date = new Date(ts.length === 13 ? num : num * 1000);
-    return date.toLocaleString('zh-CN');
+    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) + ' (北京时间)';
   };
 
   const dateToTs = (dateStr: string) => {
-    const date = new Date(dateStr);
+    if (!dateStr) return '无效的日期';
+    // Treat input as Beijing Time explicitly by appending offset
+    const date = new Date(`${dateStr}:00+08:00`);
     if (isNaN(date.getTime())) return '无效的日期';
     return Math.floor(date.getTime() / 1000).toString();
   };
@@ -33,14 +59,19 @@ const TimeTool: React.FC = () => {
           <Clock className="w-5 h-5 text-primary-500" />
           当前 Unix 时间戳
         </h2>
-        <div className="text-4xl font-mono text-primary-600 font-bold tracking-tight">
-          {now}
+        <div className="flex flex-col md:flex-row md:items-end gap-4">
+          <div className="text-4xl font-mono text-primary-600 font-bold tracking-tight leading-none">
+            {now}
+          </div>
+          <div className="text-lg text-slate-500 font-mono pb-1">
+             北京时间: {formatBeijingTime(now)}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="font-medium text-slate-700 mb-3">时间戳 &rarr; 日期时间</h3>
+          <h3 className="font-medium text-slate-700 mb-3">时间戳 &rarr; 北京时间</h3>
           <div className="flex gap-2 mb-4">
              <input 
                type="text" 
@@ -63,7 +94,7 @@ const TimeTool: React.FC = () => {
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="font-medium text-slate-700 mb-3">日期时间 &rarr; 时间戳</h3>
+          <h3 className="font-medium text-slate-700 mb-3">北京时间 &rarr; 时间戳</h3>
           <input 
              type="datetime-local" 
              value={inputDate}

@@ -6,6 +6,7 @@ import EncodingTool from './views/EncodingTool';
 import NetworkTool from './views/NetworkTool';
 import CodeTools from './views/CodeTools';
 import FeilianTool from './views/FeilianTool';
+import DidTool from './views/DidTool';
 import { RouteConfig } from './types';
 import { 
   Clock, 
@@ -15,7 +16,8 @@ import {
   FileJson, 
   Braces, 
   Terminal, 
-  FileDiff 
+  FileDiff,
+  Calculator
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -24,6 +26,7 @@ const App: React.FC = () => {
     { path: '/encode', name: '编码/解码工具', icon: Binary, component: <EncodingTool />, category: '常用工具' },
     { path: '/ip', name: '公网 IP 查询', icon: Globe, component: <NetworkTool />, category: '网络工具' },
     { path: '/feilian', name: '飞连企业识别码查询', icon: Shield, component: <FeilianTool />, category: '飞连工具' },
+    { path: '/did', name: 'DID 生成时间计算', icon: Calculator, component: <DidTool />, category: '飞连工具' },
     // Grouping code tools for cleaner sidebar, but routing individually
     { path: '/json', name: 'JSON 格式化', icon: FileJson, component: <CodeTools defaultTab="json" />, category: '代码工具' },
     { path: '/regex', name: '正则在线测试', icon: Braces, component: <CodeTools defaultTab="regex" />, category: '代码工具' },
