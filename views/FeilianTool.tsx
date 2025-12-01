@@ -112,10 +112,23 @@ const FeilianTool: React.FC = () => {
               <div className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
                 <Globe className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div className="flex-1">
-                  <label className="text-xs font-semibold text-blue-800 uppercase tracking-wider">门户域名</label>
-                  <div className="mt-1 font-mono text-lg font-medium text-slate-900 break-all">
-                    {result.data.domain}
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs font-semibold text-blue-800 uppercase tracking-wider">门户域名</label>
+                    <button 
+                      onClick={() => copyToClipboard(result.data?.domain || '')}
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" /> 复制
+                    </button>
                   </div>
+                  <a 
+                    href={result.data.domain} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="font-mono text-lg font-medium text-blue-700 hover:text-blue-900 hover:underline break-all"
+                  >
+                    {result.data.domain}
+                  </a>
                 </div>
               </div>
             </div>
