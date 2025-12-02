@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { ShieldCheck, Upload, FileText, AlertCircle, CheckCircle, XCircle, Info, Hash } from 'lucide-react';
+import { ShieldCheck, Upload, FileText, AlertCircle, CheckCircle, XCircle, Info, Hash, Globe } from 'lucide-react';
 import { X509, KJUR } from 'jsrsasign';
 
 interface CertInfo {
   subject: string;
+  primaryDomain: string;
   issuer: string;
   notBefore: string;
   notAfter: string;
@@ -11,6 +12,8 @@ interface CertInfo {
   fingerprintSha1: string;
   fingerprintSha256: string;
   sans: string[];
+  dnsNames: string[];
+  ipAddresses: string[];
   isValid: boolean;
   isExpired: boolean;
   daysRemaining: number;
@@ -42,10 +45,7 @@ const SslTool: React.FC = () => {
       const notAfterStr = x.getNotAfter();
       
       // jsrsasign returns "YYMMDDHHMMSSZ" or "YYYYMMDDHHMMSSZ"
-      // We need to parse this manually or use its helper if available, but standardized string parsing is safer
       const parseDate = (s: string) => {
-        // Simple parser for Zulu time string returned by jsrsasign
-        // Example: 230912120000Z (UTC)
         let year = parseInt(s.substring(0, 2));
         let offset = 2;
         if (s.length > 13) { // GeneralizedTime YYYY...
@@ -73,19 +73,39 @@ const SslTool: React.FC = () => {
       const sha1 = KJUR.crypto.Util.hashHex(hex, 'sha1').match(/.{1,2}/g)?.join(':').toUpperCase() || '';
       const sha256 = KJUR.crypto.Util.hashHex(hex, 'sha256').match(/.{1,2}/g)?.join(':').toUpperCase() || '';
 
-      // SANs
+      // SANs & DNS Names
       const sansArrays = x.getExtSubjectAltName2();
       const sans = sansArrays ? sansArrays.map(arr => `${arr[0]}:${arr[1]}`) : [];
+      const dnsNames = sansArrays 
+        ? sansArrays.filter(arr => arr[0] === 'DNS').map(arr => arr[1]) 
+        : [];
+      const ipAddresses = sansArrays
+        ? sansArrays.filter(arr => arr[0] === 'IP').map(arr => arr[1])
+        : [];
+
+      // Subject & Common Name
+      const subjectString = x.getSubjectString();
+      // Try to match CN=... inside the subject string (jsrsasign often returns /C=XX/O=YY/CN=ZZ)
+      const cnMatch = subjectString.match(/(?:^|\/)CN=([^/]+)/);
+      const cn = cnMatch ? cnMatch[1] : null;
+
+      // Determine Primary Domain: Priority DNS > IP > CN
+      const primaryDomain = dnsNames.length > 0 
+        ? dnsNames[0] 
+        : (ipAddresses.length > 0 ? ipAddresses[0] : (cn || '-'));
 
       setCertInfo({
-        subject: x.getSubjectString(),
+        subject: subjectString,
+        primaryDomain,
         issuer: x.getIssuerString(),
         notBefore: validFrom.toLocaleString('zh-CN'),
         notAfter: validTo.toLocaleString('zh-CN'),
         serial: x.getSerialNumberHex().match(/.{1,2}/g)?.join(':').toUpperCase() || '',
         fingerprintSha1: sha1,
         fingerprintSha256: sha256,
-        sans: sans,
+        sans,
+        dnsNames,
+        ipAddresses,
         isValid: !isExpired,
         isExpired,
         daysRemaining
@@ -198,6 +218,36 @@ const SslTool: React.FC = () => {
            </div>
 
            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Domain Information */}
+              <div className="col-span-1 md:col-span-2 p-5 bg-slate-50 border border-slate-100 rounded-xl">
+                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1">
+                   <Globe className="w-4 h-4" /> 绑定域名信息
+                 </h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 block mb-1">主域名 (Primary Domain)</span>
+                      <div className="font-mono text-lg font-medium text-slate-800 break-all">{certInfo.primaryDomain}</div>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                         *优先显示 SANs (DNS/IP)，若无则显示 CN
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 block mb-1">备用域名/IP (SANs)</span>
+                      <div className="flex flex-wrap gap-2">
+                        {[...certInfo.dnsNames, ...certInfo.ipAddresses].length > 0 ? (
+                          [...certInfo.dnsNames, ...certInfo.ipAddresses].map((item, i) => (
+                            <span key={i} className="bg-white border border-slate-200 px-2.5 py-1 rounded-md text-xs font-mono text-slate-600 shadow-sm">
+                              {item}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-400 text-xs italic">无备用域名</span>
+                        )}
+                      </div>
+                    </div>
+                 </div>
+              </div>
+
               {/* Subject & Issuer */}
               <div className="space-y-6">
                  <div>
@@ -221,23 +271,6 @@ const SslTool: React.FC = () => {
               {/* Technical Details */}
               <div className="space-y-6">
                  <div>
-                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                     <Hash className="w-3 h-3" /> 备用名称 (SANs)
-                   </h4>
-                   <div className="bg-slate-50 p-3 rounded border border-slate-100 text-sm text-slate-700 max-h-32 overflow-y-auto">
-                      {certInfo.sans.length > 0 ? (
-                        <ul className="list-disc list-inside space-y-1">
-                          {certInfo.sans.map((san, i) => (
-                            <li key={i} className="font-mono text-xs break-all">{san}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-slate-400 italic">无 SAN 信息</span>
-                      )}
-                   </div>
-                 </div>
-                 
-                 <div>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">序列号 (Serial Number)</h4>
                     <div className="font-mono text-xs text-slate-600 break-all bg-slate-50 p-2 rounded border border-slate-100">
                       {certInfo.serial}
@@ -246,7 +279,7 @@ const SslTool: React.FC = () => {
 
                  <div>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">指纹 (Fingerprints)</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-slate-400">SHA-256</span>
                         <div className="font-mono text-[10px] text-slate-600 break-all bg-slate-50 p-2 rounded border border-slate-100">
@@ -260,6 +293,23 @@ const SslTool: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                 </div>
+                 
+                 <div>
+                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                     <Hash className="w-3 h-3" /> 原始 SANs 数据
+                   </h4>
+                   <div className="bg-slate-50 p-3 rounded border border-slate-100 text-sm text-slate-700 max-h-32 overflow-y-auto">
+                      {certInfo.sans.length > 0 ? (
+                        <ul className="list-disc list-inside space-y-1">
+                          {certInfo.sans.map((san, i) => (
+                            <li key={i} className="font-mono text-xs break-all">{san}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-slate-400 italic">无 SAN 信息</span>
+                      )}
+                   </div>
                  </div>
               </div>
            </div>

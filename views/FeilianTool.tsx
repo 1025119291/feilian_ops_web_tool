@@ -41,8 +41,8 @@ const FeilianTool: React.FC = () => {
       const deployTypeRaw = deployTypeMatch ? deployTypeMatch[1] : 'unknown';
       
       let deployType = deployTypeRaw;
-      if (deployTypeRaw === '0') deployType = '私有化部署 (0)';
-      if (deployTypeRaw === '1') deployType = 'SaaS 部署 (1)';
+      if (deployTypeRaw === '0') deployType = '私有化部署';
+      if (deployTypeRaw === '1') deployType = 'SaaS 部署';
 
       setPortalInfo({
         version,
