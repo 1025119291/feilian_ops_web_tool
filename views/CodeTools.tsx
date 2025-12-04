@@ -89,7 +89,7 @@ const RegexTester = () => {
   const [explanation, setExplanation] = useState('');
   const [isExplaining, setIsExplaining] = useState(false);
 
-  const getMatches = () => {
+  const getMatches = (): RegExpMatchArray[] | null => {
     try {
       if (!regexStr) return [];
       const re = new RegExp(regexStr, flags);

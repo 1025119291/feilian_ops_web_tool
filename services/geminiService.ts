@@ -33,16 +33,16 @@ export const checkShellScript = async (script: string): Promise<string> => {
     });
 
     return response.text || "No analysis returned.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return "Error analyzing script. Please check your API key and connection.";
+    return `Error analyzing script: ${error.message || 'Unknown error'}`;
   }
 };
 
 export const explainRegex = async (regex: string, text: string): Promise<string> => {
    try {
     const ai = getAiClient();
-    const model = "gemini-3-pro-preview";
+    const model = "gemini-2.5-flash"; // Use Flash for faster, simpler explanations
     
     const prompt = `
       Explain this Hyperscan/PCRE regular expression: \`${regex}\`.
@@ -58,8 +58,8 @@ export const explainRegex = async (regex: string, text: string): Promise<string>
     });
 
     return response.text || "No explanation returned.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return "Error generating explanation.";
+    return `Error generating explanation: ${error.message || 'Check API Key'}`;
   }
 }
