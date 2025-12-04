@@ -32,12 +32,13 @@ const FileTransferTool: React.FC = () => {
     setDownloadUrl('');
 
     try {
-      // transfer.sh supports PUT requests
-      // Note: This may fail if CORS is not enabled on the transfer.sh instance or blocked by browser.
-      // Ideally, a proxy is safer, but transfer.sh often allows direct usage.
-      const response = await fetch(`https://transfer.sh/${file.name}`, {
+      // Use the internal proxy to bypass CORS
+      const targetUrl = `https://transfer.sh/${file.name}`;
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
+      
+      const response = await fetch(proxyUrl, {
         method: 'PUT',
-        body: file,
+        body: file, // Send file blob directly
       });
 
       if (!response.ok) {
@@ -48,7 +49,7 @@ const FileTransferTool: React.FC = () => {
       setDownloadUrl(url.trim());
     } catch (err: any) {
       console.error(err);
-      setError('上传失败。可能是由于跨域限制(CORS)或网络问题。建议尝试使用下方的 CLI 命令上传。');
+      setError(`上传失败: ${err.message}`);
     } finally {
       setUploading(false);
     }
