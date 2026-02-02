@@ -9,6 +9,7 @@ import FeilianTool from './views/FeilianTool';
 import DidTool from './views/DidTool';
 import SslTool from './views/SslTool';
 import FileTransferTool from './views/FileTransferTool';
+import ByteConverter from './views/ByteConverter';
 import { RouteConfig } from './types';
 import { 
   Clock, 
@@ -21,12 +22,14 @@ import {
   FileDiff,
   Calculator,
   ShieldCheck,
-  UploadCloud
+  UploadCloud,
+  Scale
 } from 'lucide-react';
 
 const App: React.FC = () => {
   const routes: RouteConfig[] = [
     { path: '/time', name: 'Unix 时间戳转换', icon: Clock, component: <TimeTool />, category: '常用工具' },
+    { path: '/byte', name: '字节单位换算', icon: Scale, component: <ByteConverter />, category: '常用工具' },
     { path: '/encode', name: '编码/解码工具', icon: Binary, component: <EncodingTool />, category: '常用工具' },
     { path: '/ssl', name: 'SSL 证书查看', icon: ShieldCheck, component: <SslTool />, category: '常用工具' },
     { path: '/ip', name: '公网 IP 查询', icon: Globe, component: <NetworkTool />, category: '网络工具' },
