@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Copy, KeyRound, Clock3, Hash, RefreshCw, XCircle } from 'lucide-react';
 
 type UninstallMode = 'company' | 'subject';
@@ -10,6 +10,10 @@ interface UninstallCodeResult {
   timeText: string;
   bucket: number;
   utcTime: string;
+  validFromMs: number;
+  validUntilMs: number;
+  validFromText: string;
+  validUntilText: string;
 }
 
 const pad2 = (value: number) => value.toString().padStart(2, '0');
@@ -38,6 +42,32 @@ const formatBucketTime = (date: Date) => {
   return { bucket, timeText };
 };
 
+const getBucketWindow = (date: Date) => {
+  const bucketStartMinute = Math.floor(date.getUTCMinutes() / 15) * 15;
+  const validFrom = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+    date.getUTCHours(),
+    bucketStartMinute,
+    0,
+    0
+  ));
+  const validUntil = new Date(validFrom.getTime() + 15 * 60 * 1000);
+
+  return { validFrom, validUntil };
+};
+
+const formatUtcDisplay = (date: Date) => `${formatUtcInputValue(date).replace('T', ' ')} UTC`;
+
+const formatDuration = (milliseconds: number) => {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${pad2(minutes)}:${pad2(seconds)}`;
+};
+
 const sha256Hex = async (text: string) => {
   const data = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -54,8 +84,15 @@ const UninstallCodeTool: React.FC = () => {
   const [timeMode, setTimeMode] = useState<UninstallTimeMode>('now');
   const [utcInput, setUtcInput] = useState(formatUtcInputValue(new Date()));
   const [result, setResult] = useState<UninstallCodeResult | null>(null);
+  const [nowMs, setNowMs] = useState(Date.now());
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -93,6 +130,7 @@ const UninstallCodeTool: React.FC = () => {
 
     try {
       const { bucket, timeText } = formatBucketTime(targetDate);
+      const { validFrom, validUntil } = getBucketWindow(targetDate);
       const plainText = mode === 'subject'
         ? `feilian|${normalizedCompanyId}|${normalizedSubjectId}|${timeText}`
         : `feilian|${normalizedCompanyId}|${timeText}`;
@@ -103,7 +141,11 @@ const UninstallCodeTool: React.FC = () => {
         plainText,
         timeText,
         bucket,
-        utcTime: `${formatUtcInputValue(targetDate).replace('T', ' ')} UTC`
+        utcTime: formatUtcDisplay(targetDate),
+        validFromMs: validFrom.getTime(),
+        validUntilMs: validUntil.getTime(),
+        validFromText: formatUtcDisplay(validFrom),
+        validUntilText: formatUtcDisplay(validUntil)
       });
     } catch (err: any) {
       setError(err.message || '卸载码计算失败。');
@@ -114,6 +156,30 @@ const UninstallCodeTool: React.FC = () => {
 
   const refreshUtcInput = () => {
     setUtcInput(formatUtcInputValue(new Date()));
+  };
+
+  const getValidityState = (targetResult: UninstallCodeResult) => {
+    if (nowMs < targetResult.validFromMs) {
+      return {
+        label: '距离生效',
+        value: formatDuration(targetResult.validFromMs - nowMs),
+        className: 'bg-amber-50 border-amber-200 text-amber-800'
+      };
+    }
+
+    if (nowMs >= targetResult.validUntilMs) {
+      return {
+        label: '状态',
+        value: '已过期',
+        className: 'bg-red-50 border-red-200 text-red-700'
+      };
+    }
+
+    return {
+      label: '有效期倒计时',
+      value: formatDuration(targetResult.validUntilMs - nowMs),
+      className: 'bg-emerald-50 border-emerald-200 text-emerald-800'
+    };
   };
 
   return (
@@ -241,6 +307,10 @@ const UninstallCodeTool: React.FC = () => {
                   <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mb-1">卸载码</div>
                   <div className="font-mono text-3xl font-semibold text-emerald-700 tracking-wide">{result.code}</div>
                 </div>
+                <div className={`px-4 py-3 rounded-lg border text-center ${getValidityState(result).className}`}>
+                  <div className="text-xs font-semibold uppercase tracking-wider mb-1">{getValidityState(result).label}</div>
+                  <div className="font-mono text-2xl font-semibold leading-none">{getValidityState(result).value}</div>
+                </div>
                 <button
                   onClick={() => copyToClipboard(result.code)}
                   className="px-4 py-2 bg-white border border-emerald-200 rounded-lg text-sm text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2"
@@ -252,6 +322,8 @@ const UninstallCodeTool: React.FC = () => {
                 <UninstallMeta icon={<Clock3 className="w-4 h-4" />} label="UTC 时间" value={result.utcTime} />
                 <UninstallMeta icon={<Clock3 className="w-4 h-4" />} label="时间分桶" value={`第 ${result.bucket} 桶`} />
                 <UninstallMeta icon={<Hash className="w-4 h-4" />} label="时间串" value={result.timeText} />
+                <UninstallMeta icon={<Clock3 className="w-4 h-4" />} label="生效时间" value={result.validFromText} />
+                <UninstallMeta icon={<Clock3 className="w-4 h-4" />} label="过期时间" value={result.validUntilText} />
               </div>
               <div className="px-5 pb-5">
                 <div className="flex justify-between items-center mb-2">
