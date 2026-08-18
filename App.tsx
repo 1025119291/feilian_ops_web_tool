@@ -8,7 +8,7 @@ import CodeTools from './views/CodeTools';
 import FeilianTool from './views/FeilianTool';
 import DidTool from './views/DidTool';
 import SslTool from './views/SslTool';
-import FileTransferTool from './views/FileTransferTool';
+import FileInfoTool from './views/FileInfoTool';
 import ByteConverter from './views/ByteConverter';
 import { RouteConfig } from './types';
 import { 
@@ -22,7 +22,7 @@ import {
   FileDiff,
   Calculator,
   ShieldCheck,
-  UploadCloud,
+  FileSearch,
   Scale
 } from 'lucide-react';
 
@@ -33,7 +33,7 @@ const App: React.FC = () => {
     { path: '/encode', name: '编码/解码工具', icon: Binary, component: <EncodingTool />, category: '常用工具' },
     { path: '/ssl', name: 'SSL 证书查看', icon: ShieldCheck, component: <SslTool />, category: '常用工具' },
     { path: '/ip', name: '公网 IP 查询', icon: Globe, component: <NetworkTool />, category: '网络工具' },
-    { path: '/transfer', name: '文件临时传输', icon: UploadCloud, component: <FileTransferTool />, category: '网络工具' },
+    { path: '/file-info', name: '文件信息查看', icon: FileSearch, component: <FileInfoTool />, category: '网络工具' },
     { path: '/feilian', name: '飞连企业识别码查询', icon: Shield, component: <FeilianTool />, category: '飞连工具' },
     { path: '/did', name: 'DID 生成时间计算', icon: Calculator, component: <DidTool />, category: '飞连工具' },
     // Grouping code tools for cleaner sidebar, but routing individually
@@ -56,6 +56,8 @@ const App: React.FC = () => {
             </header>
             <Routes>
               <Route path="/" element={<Navigate to="/time" replace />} />
+              <Route path="/transfer" element={<Navigate to="/file-info" replace />} />
+              <Route path="/file-transfer" element={<Navigate to="/file-info" replace />} />
               {routes.map((route) => (
                 <Route 
                   key={route.path} 
