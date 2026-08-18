@@ -6,6 +6,7 @@ import EncodingTool from './views/EncodingTool';
 import NetworkTool from './views/NetworkTool';
 import CodeTools from './views/CodeTools';
 import FeilianTool from './views/FeilianTool';
+import UninstallCodeTool from './views/UninstallCodeTool';
 import DidTool from './views/DidTool';
 import SslTool from './views/SslTool';
 import FileInfoTool from './views/FileInfoTool';
@@ -22,6 +23,7 @@ import {
   FileDiff,
   Calculator,
   ShieldCheck,
+  KeyRound,
   FileSearch,
   Scale
 } from 'lucide-react';
@@ -35,6 +37,7 @@ const App: React.FC = () => {
     { path: '/ip', name: '公网 IP 查询', icon: Globe, component: <NetworkTool />, category: '网络工具' },
     { path: '/file-info', name: '文件信息查看', icon: FileSearch, component: <FileInfoTool />, category: '网络工具' },
     { path: '/feilian', name: '飞连企业识别码查询', icon: Shield, component: <FeilianTool />, category: '飞连工具' },
+    { path: '/feilian-uninstall-code', name: '飞连卸载码计算', icon: KeyRound, component: <UninstallCodeTool />, category: '飞连工具' },
     { path: '/did', name: 'DID 生成时间计算', icon: Calculator, component: <DidTool />, category: '飞连工具' },
     // Grouping code tools for cleaner sidebar, but routing individually
     { path: '/json', name: 'JSON 格式化', icon: FileJson, component: <CodeTools defaultTab="json" />, category: '代码工具' },
