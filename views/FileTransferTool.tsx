@@ -1,27 +1,150 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, File, X, Copy, Terminal, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
+type FileMetadata = {
+  md5: string;
+  sha1: string;
+  mime: string;
+};
+
+const toHex = (buffer: ArrayBuffer) =>
+  Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+
+const leftRotate = (value: number, shift: number) => ((value << shift) | (value >>> (32 - shift))) >>> 0;
+
+const add32 = (...values: number[]) => values.reduce((sum, value) => (sum + value) >>> 0, 0);
+
+const wordToHex = (word: number) => {
+  let hex = '';
+  for (let i = 0; i < 4; i++) {
+    hex += ((word >>> (i * 8)) & 0xff).toString(16).padStart(2, '0');
+  }
+  return hex;
+};
+
+const md5ArrayBuffer = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer);
+  const originalBitLength = bytes.length * 8;
+  const paddedLength = (((bytes.length + 8) >>> 6) + 1) << 6;
+  const padded = new Uint8Array(paddedLength);
+  padded.set(bytes);
+  padded[bytes.length] = 0x80;
+
+  const view = new DataView(padded.buffer);
+  view.setUint32(paddedLength - 8, originalBitLength >>> 0, true);
+  view.setUint32(paddedLength - 4, Math.floor(originalBitLength / 0x100000000), true);
+
+  let a0 = 0x67452301;
+  let b0 = 0xefcdab89;
+  let c0 = 0x98badcfe;
+  let d0 = 0x10325476;
+
+  const shifts = [
+    7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+    5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+    4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+    6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
+  ];
+
+  const constants = Array.from({ length: 64 }, (_, index) =>
+    Math.floor(Math.abs(Math.sin(index + 1)) * 0x100000000) >>> 0
+  );
+
+  for (let offset = 0; offset < paddedLength; offset += 64) {
+    let a = a0;
+    let b = b0;
+    let c = c0;
+    let d = d0;
+    const words = Array.from({ length: 16 }, (_, index) => view.getUint32(offset + index * 4, true));
+
+    for (let i = 0; i < 64; i++) {
+      let f: number;
+      let g: number;
+
+      if (i < 16) {
+        f = (b & c) | (~b & d);
+        g = i;
+      } else if (i < 32) {
+        f = (d & b) | (~d & c);
+        g = (5 * i + 1) % 16;
+      } else if (i < 48) {
+        f = b ^ c ^ d;
+        g = (3 * i + 5) % 16;
+      } else {
+        f = c ^ (b | ~d);
+        g = (7 * i) % 16;
+      }
+
+      const temp = d;
+      d = c;
+      c = b;
+      b = add32(b, leftRotate(add32(a, f, constants[i], words[g]), shifts[i]));
+      a = temp;
+    }
+
+    a0 = add32(a0, a);
+    b0 = add32(b0, b);
+    c0 = add32(c0, c);
+    d0 = add32(d0, d);
+  }
+
+  return [a0, b0, c0, d0].map(wordToHex).join('');
+};
+
 const FileTransferTool: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [metadata, setMetadata] = useState<FileMetadata | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const clearFile = () => {
+    setFile(null);
+    setMetadata(null);
+    setDownloadUrl('');
+    setError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const selectFile = async (selectedFile: File) => {
+    setFile(selectedFile);
+    setMetadata(null);
+    setMetadataLoading(true);
+    setDownloadUrl('');
+    setError('');
+
+    try {
+      const buffer = await selectedFile.arrayBuffer();
+      const sha1Buffer = await crypto.subtle.digest('SHA-1', buffer.slice(0));
+      setMetadata({
+        md5: md5ArrayBuffer(buffer),
+        sha1: toHex(sha1Buffer),
+        mime: selectedFile.type || '未知',
+      });
+    } catch (err: any) {
+      console.error(err);
+      setError(`文件信息读取失败: ${err.message}`);
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setDownloadUrl('');
-      setError('');
+      selectFile(e.target.files[0]);
     }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
-      setDownloadUrl('');
-      setError('');
+      selectFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -94,7 +217,7 @@ const FileTransferTool: React.FC = () => {
             />
             
             {file ? (
-              <div className="flex flex-col items-center gap-2 animate-in fade-in zoom-in">
+              <div className="flex w-full max-w-2xl flex-col items-center gap-3 animate-in fade-in zoom-in">
                 <div className="p-3 bg-white rounded-full shadow-sm">
                   <File className="w-8 h-8 text-indigo-500" />
                 </div>
@@ -102,8 +225,32 @@ const FileTransferTool: React.FC = () => {
                   <p className="font-medium text-slate-700">{file.name}</p>
                   <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(2)} KB</p>
                 </div>
+                <div className="w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-left text-xs shadow-sm">
+                  {metadataLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-3 text-slate-500">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> 正在计算文件指纹...
+                    </div>
+                  ) : metadata ? (
+                    <div className="grid gap-2">
+                      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+                        <span className="font-semibold text-slate-500">MIME</span>
+                        <span className="min-w-0 break-all font-mono text-slate-700">{metadata.mime}</span>
+                      </div>
+                      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+                        <span className="font-semibold text-slate-500">MD5</span>
+                        <span className="min-w-0 break-all font-mono text-slate-700">{metadata.md5}</span>
+                      </div>
+                      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+                        <span className="font-semibold text-slate-500">SHA1</span>
+                        <span className="min-w-0 break-all font-mono text-slate-700">{metadata.sha1}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="py-3 text-center text-slate-400">暂无文件指纹信息</p>
+                  )}
+                </div>
                 <button 
-                  onClick={(e) => { e.stopPropagation(); setFile(null); setDownloadUrl(''); }}
+                  onClick={(e) => { e.stopPropagation(); clearFile(); }}
                   className="mt-2 text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                 >
                   <X className="w-3 h-3" /> 移除文件
