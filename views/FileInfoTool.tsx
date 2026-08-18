@@ -4,6 +4,7 @@ import { File, X, AlertCircle, Loader2, FileSearch } from 'lucide-react';
 type FileMetadata = {
   md5: string;
   sha1: string;
+  sha256: string;
   mime: string;
 };
 
@@ -117,10 +118,14 @@ const FileInfoTool: React.FC = () => {
 
     try {
       const buffer = await selectedFile.arrayBuffer();
-      const sha1Buffer = await crypto.subtle.digest('SHA-1', buffer.slice(0));
+      const [sha1Buffer, sha256Buffer] = await Promise.all([
+        crypto.subtle.digest('SHA-1', buffer.slice(0)),
+        crypto.subtle.digest('SHA-256', buffer.slice(0)),
+      ]);
       setMetadata({
         md5: md5ArrayBuffer(buffer),
         sha1: toHex(sha1Buffer),
+        sha256: toHex(sha256Buffer),
         mime: selectedFile.type || '未知',
       });
     } catch (err: any) {
@@ -152,7 +157,7 @@ const FileInfoTool: React.FC = () => {
             <FileSearch className="w-5 h-5 text-indigo-600" /> 文件信息查看
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            在浏览器本地读取文件信息，查看文件大小、MIME 类型、MD5 和 SHA1 指纹。
+            在浏览器本地读取文件信息，查看文件大小、MIME 类型、MD5、SHA1 和 SHA256 指纹。
           </p>
         </div>
 
@@ -200,6 +205,10 @@ const FileInfoTool: React.FC = () => {
                       <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
                         <span className="font-semibold text-slate-500">SHA1</span>
                         <span className="min-w-0 break-all font-mono text-slate-700">{metadata.sha1}</span>
+                      </div>
+                      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2">
+                        <span className="font-semibold text-slate-500">SHA256</span>
+                        <span className="min-w-0 break-all font-mono text-slate-700">{metadata.sha256}</span>
                       </div>
                     </div>
                   ) : (
