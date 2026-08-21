@@ -25,6 +25,111 @@ const wordToHex = (word: number) => {
   return hex;
 };
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  '7z': 'application/x-7z-compressed',
+  aac: 'audio/aac',
+  avi: 'video/x-msvideo',
+  bin: 'application/octet-stream',
+  bz2: 'application/x-bzip2',
+  c: 'text/x-c',
+  conf: 'text/plain',
+  cpp: 'text/x-c++',
+  css: 'text/css',
+  csv: 'text/csv',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  gif: 'image/gif',
+  go: 'text/x-go',
+  gz: 'application/gzip',
+  h: 'text/x-c',
+  html: 'text/html',
+  ini: 'text/plain',
+  jar: 'application/java-archive',
+  java: 'text/x-java-source',
+  jpe: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  js: 'text/javascript',
+  json: 'application/json',
+  log: 'text/plain',
+  m4a: 'audio/mp4',
+  md: 'text/markdown',
+  mjs: 'text/javascript',
+  mov: 'video/quicktime',
+  mp3: 'audio/mpeg',
+  mp4: 'video/mp4',
+  pdf: 'application/pdf',
+  pem: 'application/x-pem-file',
+  png: 'image/png',
+  py: 'text/x-python',
+  rar: 'application/vnd.rar',
+  rs: 'text/x-rust',
+  sh: 'application/x-sh',
+  sql: 'application/sql',
+  svg: 'image/svg+xml',
+  tar: 'application/x-tar',
+  text: 'text/plain',
+  toml: 'application/toml',
+  ts: 'text/typescript',
+  tsx: 'text/tsx',
+  txt: 'text/plain',
+  wasm: 'application/wasm',
+  wav: 'audio/wav',
+  webm: 'video/webm',
+  webp: 'image/webp',
+  xml: 'application/xml',
+  yaml: 'application/yaml',
+  yml: 'application/yaml',
+  zip: 'application/zip',
+};
+
+const startsWith = (bytes: Uint8Array, signature: number[]) =>
+  signature.every((byte, index) => bytes[index] === byte);
+
+const hasTextContent = (bytes: Uint8Array) => {
+  if (bytes.includes(0)) {
+    return false;
+  }
+
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const resolveMimeType = (file: File, buffer: ArrayBuffer) => {
+  if (file.type) {
+    return file.type;
+  }
+
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension && MIME_BY_EXTENSION[extension]) {
+    return MIME_BY_EXTENSION[extension];
+  }
+
+  const bytes = new Uint8Array(buffer.slice(0, 512));
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
+  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (startsWith(bytes, [0x47, 0x49, 0x46, 0x38])) return 'image/gif';
+  if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46, 0x2d])) return 'application/pdf';
+  if (startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])) return 'application/zip';
+  if (startsWith(bytes, [0x1f, 0x8b])) return 'application/gzip';
+  if (startsWith(bytes, [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07])) return 'application/vnd.rar';
+  if (startsWith(bytes, [0x7f, 0x45, 0x4c, 0x46])) return 'application/x-elf';
+  if (startsWith(bytes, [0x4d, 0x5a])) return 'application/vnd.microsoft.portable-executable';
+
+  if (hasTextContent(bytes)) {
+    const content = new TextDecoder().decode(bytes).trimStart();
+    if (content.startsWith('{') || content.startsWith('[')) return 'application/json';
+    if (content.startsWith('<?xml') || content.startsWith('<')) return 'application/xml';
+    return 'text/plain';
+  }
+
+  return 'application/octet-stream';
+};
+
 const md5ArrayBuffer = (buffer: ArrayBuffer) => {
   const bytes = new Uint8Array(buffer);
   const originalBitLength = bytes.length * 8;
@@ -126,7 +231,7 @@ const FileInfoTool: React.FC = () => {
         md5: md5ArrayBuffer(buffer),
         sha1: toHex(sha1Buffer),
         sha256: toHex(sha256Buffer),
-        mime: selectedFile.type || '未知',
+        mime: resolveMimeType(selectedFile, buffer),
       });
     } catch (err: any) {
       console.error(err);
